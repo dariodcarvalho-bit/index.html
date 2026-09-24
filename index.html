@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Indicadores SESMT - Rondon</title>
+  
+  <!-- FAVICON DE SEGURANÇA E MEDICINA DO TRABALHO -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2334d399' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/><path d='M12 8v8'/><path d='M8 12h8'/></svg>">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Chart.js DataLabels Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+  <!-- SheetJS para Parsing e Exportação Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- jsPDF & AutoTable para Exportação em PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    .kpi-card { transition: all 0.2s ease-in-out; text-align: center; }
+    .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); }
+    .tab-active { border-bottom: 2px solid #34d399; color: #34d399; font-weight: 700; }
+    .tab-bg-container { background: #1e293b; border-radius: 1rem; padding: 1.5rem; border: 1px solid #334155; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); color: #f8fafc; }
+  </style>
+</head>
+<body class="bg-[#0f172a] font-sans text-slate-100 min-h-screen flex flex-col">
+
+  <!-- CABEÇALHO / HEADER -->
+  <header class="bg-[#1e293b] text-white shadow-xl sticky top-0 z-50 border-b border-[#334155]">
+    <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center gap-4">
+        <div class="bg-[#0f172a] border border-emerald-500/40 p-3 rounded-xl text-emerald-400 font-bold flex items-center justify-center shadow-inner">
+          <i data-lucide="shield-plus" class="w-8 h-8"></i>
+        </div>
+        <div>
+          <div class="flex items-baseline gap-2.5">
+            <span class="text-2xl font-black tracking-wider text-emerald-400 uppercase drop-shadow-sm">SESMT</span>
+            <span class="text-xs text-slate-500 font-bold">•</span>
+            <h1 class="text-sm font-extrabold tracking-tight text-slate-200 uppercase">SUPERMERCADOS RONDON</h1>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">Plataforma Integrada Segurança do Trabalho & Medicina do Trabalho</p>
+        </div>
+      </div>
+
+      <!-- Ações de Perfil e Segurança -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center bg-[#0f172a] rounded-lg p-1 text-xs border border-slate-700 shadow-inner">
+          <span class="px-2 text-slate-400 font-medium">Perfil RBAC:</span>
+          <select id="userRole" onchange="alterarPerfil()" class="bg-[#1e293b] text-emerald-400 font-semibold rounded px-2 py-1 outline-none border border-slate-700">
+            <option value="ADM">ADM Geral (Master)</option>
+            <option value="MEDICO">Médico do Trabalho / Enfermagem</option>
+            <option value="GESTOR">Gestor / Operacional (Sem CID)</option>
+            <option value="LEITURA">Consulta / Leitura</option>
+          </select>
+        </div>
+
+        <button onclick="abrirModalReset()" class="bg-rose-950/60 hover:bg-rose-900 text-rose-300 hover:text-white border border-rose-800/60 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition shadow-sm">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Reset da Base
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAVEGAÇÃO DE MÓDULOS -->
+  <nav class="bg-[#1e293b]/90 border-b border-[#334155] backdrop-blur-md sticky top-[68px] z-40">
+    <div class="max-w-7xl mx-auto px-4 flex gap-6 text-xs font-medium text-slate-400">
+      <button onclick="mudarAba('dashboard')" id="tab-dashboard" class="py-3 tab-active flex items-center gap-1.5 transition">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard Executivo
+      </button>
+      <button onclick="mudarAba('comparativo')" id="tab-comparativo" class="py-3 flex items-center gap-1.5 hover:text-slate-200 transition">
+        <i data-lucide="trending-up" class="w-4 h-4"></i> Comparativo Mês a Mês
+      </button>
+      <button onclick="mudarAba('prontuario')" id="tab-prontuario" class="py-3 flex items-center gap-1.5 hover:text-slate-200 transition">
+        <i data-lucide="user-check" class="w-4 h-4"></i> Prontuário por Ficha / Matrícula
+      </button>
+      <button onclick="mudarAba('alertas')" id="tab-alertas" class="py-3 flex items-center gap-1.5 relative hover:text-slate-200 transition">
+        <i data-lucide="bell" class="w-4 h-4"></i> Alertas Epidemiológicos
+        <span id="badgeAlertas" class="bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full hidden">0</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+
+    <!-- SEÇÃO: DASHBOARD -->
+    <div id="sec-dashboard" class="space-y-6">
+      
+      <!-- PAINEL DE IMPORTAÇÃO DE DADOS -->
+      <section class="tab-bg-container">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+          <div>
+            <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <i data-lucide="file-up" class="text-emerald-400 w-4 h-4"></i> Carga de Planilhas (EMPREGADOS, ATENDIMENTO, ATESTADO)
+            </h2>
+            <p class="text-xs text-slate-400">Suba os arquivos .xlsx originais do sistema para atualização instantânea dos indicadores.</p>
+          </div>
+          <div id="statusCarga" class="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800">
+            Aguardando arquivos...
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <label class="border-2 border-dashed border-slate-600 hover:border-emerald-500 rounded-lg p-3 flex items-center gap-3 cursor-pointer transition bg-[#0f172a]/60 hover:bg-[#0f172a] shadow-sm">
+            <div class="p-2 bg-indigo-950 text-indigo-400 rounded-lg border border-indigo-800"><i data-lucide="users" class="w-4 h-4"></i></div>
+            <div class="flex-1">
+              <span class="block text-xs font-bold text-slate-200">EMPREGADOS.xlsx</span>
+              <span class="block text-[10px] text-slate-400">Cargos, Filiais e Situação</span>
+            </div>
+            <input type="file" accept=".xlsx, .xls, .csv" class="hidden" onchange="processarArquivo(event, 'EMPREGADOS')" />
+          </label>
+
+          <label class="border-2 border-dashed border-slate-600 hover:border-emerald-500 rounded-lg p-3 flex items-center gap-3 cursor-pointer transition bg-[#0f172a]/60 hover:bg-[#0f172a] shadow-sm">
+            <div class="p-2 bg-emerald-950 text-emerald-400 rounded-lg border border-emerald-800"><i data-lucide="stethoscope" class="w-4 h-4"></i></div>
+            <div class="flex-1">
+              <span class="block text-xs font-bold text-slate-200">ATENDIMENTO.xlsx</span>
+              <span class="block text-[10px] text-slate-400">Exames Ocupacionais</span>
+            </div>
+            <input type="file" accept=".xlsx, .xls, .csv" class="hidden" onchange="processarArquivo(event, 'ATENDIMENTO')" />
+          </label>
+
+          <label class="border-2 border-dashed border-slate-600 hover:border-emerald-500 rounded-lg p-3 flex items-center gap-3 cursor-pointer transition bg-[#0f172a]/60 hover:bg-[#0f172a] shadow-sm">
+            <div class="p-2 bg-rose-950 text-rose-400 rounded-lg border border-rose-800"><i data-lucide="file-text" class="w-4 h-4"></i></div>
+            <div class="flex-1">
+              <span class="block text-xs font-bold text-slate-200">ATESTADO.xlsx</span>
+              <span class="block text-[10px] text-slate-400">Afastamentos, CIDs e Horas</span>
+            </div>
+            <input type="file" accept=".xlsx, .xls, .csv" class="hidden" onchange="processarArquivo(event, 'ATESTADO')" />
+          </label>
+        </div>
+      </section>
+
+      <!-- BARRA DE FILTROS GLOBAIS ESTILIZADOS E CENTRALIZADOS -->
+      <section class="bg-[#1e293b] text-white p-5 rounded-xl shadow-lg border border-[#334155] flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex flex-wrap items-center justify-center lg:justify-start gap-3 text-xs w-full">
+          <span class="font-bold text-emerald-400 flex items-center gap-1.5"><i data-lucide="filter" class="w-4 h-4"></i> Filtros Globais:</span>
+          
+          <select id="filtroAno" onchange="aplicarFiltrosGlobais()" class="bg-[#0f172a] text-slate-200 rounded-lg px-3 py-2 border border-slate-700 outline-none text-xs font-semibold shadow-inner">
+            <option value="">Todos os Anos</option>
+          </select>
+
+          <select id="filtroMes" onchange="aplicarFiltrosGlobais()" class="bg-[#0f172a] text-slate-200 rounded-lg px-3 py-2 border border-slate-700 outline-none text-xs font-semibold shadow-inner">
+            <option value="">Todos os Meses</option>
+            <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+            <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+            <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+            <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+          </select>
+
+          <select id="filtroFilial" onchange="aplicarFiltrosGlobais()" class="bg-[#0f172a] text-slate-200 rounded-lg px-3 py-2 border border-slate-700 outline-none text-xs font-semibold shadow-inner">
+            <option value="">Todas as Lojas (1, 2, 3, 4)</option>
+          </select>
+
+          <select id="filtroSetor" onchange="aplicarFiltrosGlobais()" class="bg-[#0f172a] text-slate-200 rounded-lg px-3 py-2 border border-slate-700 outline-none text-xs font-semibold shadow-inner">
+            <option value="">Todos os Setores</option>
+          </select>
+
+          <select id="filtroCID" onchange="aplicarFiltrosGlobais()" class="bg-[#0f172a] text-slate-200 rounded-lg px-3 py-2 border border-slate-700 outline-none text-xs font-semibold shadow-inner">
+            <option value="">Todas as CIDs</option>
+          </select>
+
+          <button onclick="limparFiltros()" class="text-slate-400 hover:text-white underline text-xs font-semibold ml-2">Limpar Filtros</button>
+        </div>
+
+        <div class="flex items-center gap-2 w-full lg:w-auto justify-end shrink-0">
+          <button onclick="exportarExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-sm">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel
+          </button>
+          <button onclick="exportarPDF()" class="bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-sm">
+            <i data-lucide="download" class="w-4 h-4"></i> PDF
+          </button>
+        </div>
+      </section>
+
+      <!-- CARDS DE SAÚDE MENTAL E LER/DORT (TEXTOS CENTRALIZADOS, LETRA AUMENTADA, SÍMBOLOS ALINHADOS) -->
+      <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- CARD: SAÚDE MENTAL -->
+        <div class="kpi-card bg-[#1e293b] p-5 rounded-2xl border-2 border-purple-500/40 shadow-xl flex flex-col justify-between">
+          <div class="flex justify-between items-start">
+            <div></div>
+            <span class="text-xs font-extrabold text-purple-400 uppercase tracking-wider flex items-center gap-1.5 mx-auto">
+              <i data-lucide="brain" class="w-4 h-4 text-purple-400"></i> Indicador de Saúde Mental (CID F00–F99)
+            </span>
+            <span id="kpiSMPercent" class="bg-purple-950 text-purple-300 border border-purple-800 text-xs font-bold px-2 py-0.5 rounded-lg">0.0%</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Transtornos mentais, ansiedade, depressão e estresse ocupacional</p>
+          <div class="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-700 text-center">
+            <div class="bg-[#0f172a] p-3 rounded-xl border border-slate-700">
+              <span class="text-[11px] font-bold text-slate-400 block uppercase">Quantidade</span>
+              <span id="kpiSaudeMental" class="text-3xl font-black text-purple-300 mt-1 block">0</span>
+            </div>
+            <div class="bg-[#0f172a] p-3 rounded-xl border border-slate-700">
+              <span class="text-[11px] font-bold text-slate-400 block uppercase">Dias Afastados</span>
+              <span id="kpiSMDias" class="text-3xl font-black text-amber-400 mt-1 block">0</span>
+            </div>
+            <div class="bg-[#0f172a] p-3 rounded-xl border border-slate-700">
+              <span class="text-[11px] font-bold text-slate-400 block uppercase">Índice Gravidade</span>
+              <span id="kpiSMIndice" class="text-3xl font-black text-slate-100 mt-1 block">0.0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD: LER / DORT -->
+        <div class="kpi-card bg-[#1e293b] p-5 rounded-2xl border-2 border-blue-500/40 shadow-xl flex flex-col justify-between">
+          <div class="flex justify-between items-start">
+            <div></div>
+            <span class="text-xs font-extrabold text-blue-400 uppercase tracking-wider flex items-center gap-1.5 mx-auto">
+              <i data-lucide="activity" class="w-4 h-4 text-blue-400"></i> Indicador LER / DORT (CID M00–M99)
+            </span>
+            <span id="kpiLDPercent" class="bg-blue-950 text-blue-300 border border-blue-800 text-xs font-bold px-2 py-0.5 rounded-lg">0.0%</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Doenças osteomusculares, tendinites, bursites e lombalgias</p>
+          <div class="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-700 text-center">
+            <div class="bg-[#0f172a] p-3 rounded-xl border border-slate-700">
+              <span class="text-[11px] font-bold text-slate-400 block uppercase">Quantidade</span>
+              <span id="kpiLerDort" class="text-3xl font-black text-blue-300 mt-1 block">0</span>
+            </div>
+            <div class="bg-[#0f172a] p-3 rounded-xl border border-slate-700">
+              <span class="text-[11px] font-bold text-slate-400 block uppercase">Dias Afastados</span>
+              <span id="kpiLDDias" class="text-3xl font-black text-amber-400 mt-1 block">0</span>
+            </div>
+            <div class="bg-[#0f172a] p-3 rounded-xl border border-slate-700">
+              <span class="text-[11px] font-bold text-slate-400 block uppercase">Índice Gravidade</span>
+              <span id="kpiLDIndice" class="text-3xl font-black text-slate-100 mt-1 block">0.0</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- KPIS GERAIS COMPLEMENTARES -->
+      <section class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div class="kpi-card bg-[#1e293b] p-3.5 rounded-xl border border-[#334155] shadow-sm">
+          <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Total Atestados</span>
+          <div class="flex justify-center items-center gap-2">
+            <i data-lucide="file-check" class="w-4 h-4 text-emerald-400"></i>
+            <span id="kpiTotalAtestados" class="text-xl font-extrabold text-slate-100">0</span>
+          </div>
+        </div>
+
+        <div class="kpi-card bg-[#1e293b] p-3.5 rounded-xl border border-[#334155] shadow-sm">
+          <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Dias Afastados</span>
+          <div class="flex justify-center items-center gap-2">
+            <i data-lucide="calendar" class="w-4 h-4 text-amber-400"></i>
+            <span id="kpiTotalDias" class="text-xl font-extrabold text-amber-400">0</span>
+          </div>
+        </div>
+
+        <div class="kpi-card bg-[#1e293b] p-3.5 rounded-xl border border-[#334155] shadow-sm">
+          <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Horas Atestado</span>
+          <div class="flex justify-center items-center gap-2">
+            <i data-lucide="clock" class="w-4 h-4 text-rose-400"></i>
+            <span id="kpiTotalHoras" class="text-xl font-extrabold text-rose-400">0h</span>
+          </div>
+        </div>
+
+        <div class="kpi-card bg-[#1e293b] p-3.5 rounded-xl border border-[#334155] shadow-sm">
+          <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Afastados Únicos</span>
+          <div class="flex justify-center items-center gap-2">
+            <i data-lucide="users" class="w-4 h-4 text-indigo-400"></i>
+            <span id="kpiFuncAfastados" class="text-xl font-extrabold text-indigo-400">0</span>
+          </div>
+        </div>
+
+        <div class="kpi-card bg-[#1e293b] p-3.5 rounded-xl border border-[#334155] shadow-sm">
+          <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Índice Gravidade</span>
+          <div class="flex justify-center items-center gap-2">
+            <i data-lucide="trending-up" class="w-4 h-4 text-emerald-400"></i>
+            <span id="kpiIndiceGravidade" class="text-xl font-extrabold text-slate-100">0.0</span>
+          </div>
+        </div>
+
+        <div class="kpi-card bg-[#1e293b] p-3.5 rounded-xl border border-[#334155] shadow-sm">
+          <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Exames Ocupac.</span>
+          <div class="flex justify-center items-center gap-2">
+            <i data-lucide="clipboard-check" class="w-4 h-4 text-emerald-400"></i>
+            <span id="kpiExamesOcupacionais" class="text-xl font-extrabold text-emerald-400">0</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- GRÁFICOS SUPERIORES -->
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="tab-bg-container flex flex-col">
+          <h3 class="text-xs font-bold text-slate-200 mb-4 flex items-center gap-2 uppercase tracking-wider">
+            <i data-lucide="store" class="text-emerald-400 w-4 h-4"></i> Atestados por Loja
+          </h3>
+          <div class="relative flex-1 min-h-[230px]">
+            <canvas id="chartAtestadosPorLoja"></canvas>
+          </div>
+        </div>
+
+        <div class="tab-bg-container flex flex-col">
+          <h3 class="text-xs font-bold text-slate-200 mb-4 flex items-center gap-2 uppercase tracking-wider">
+            <i data-lucide="calendar-days" class="text-amber-400 w-4 h-4"></i> Dias Afastados por Loja
+          </h3>
+          <div class="relative flex-1 min-h-[230px]">
+            <canvas id="chartDiasPorLoja"></canvas>
+          </div>
+        </div>
+
+        <div class="tab-bg-container flex flex-col">
+          <h3 class="text-xs font-bold text-slate-200 mb-4 flex items-center gap-2 uppercase tracking-wider">
+            <i data-lucide="pie-chart" class="text-indigo-400 w-4 h-4"></i> Atendimentos por Tipo (Filtrado)
+          </h3>
+          <div class="relative flex-1 min-h-[230px] flex items-center justify-center">
+            <canvas id="chartAtendimentosPizza"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- GRÁFICOS DE ROSCA (POSTOS DE ATENDIMENTO E CIDS) LADO A LADO 50%/50% EM CIMA DO ABSENTEÍSMO -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="tab-bg-container flex flex-col">
+          <h3 class="text-xs font-bold text-slate-200 mb-4 flex items-center gap-2 uppercase tracking-wider">
+            <i data-lucide="building" class="text-purple-400 w-4 h-4"></i> Postos de Atendimento (Atestados)
+          </h3>
+          <div class="relative flex-1 min-h-[260px] flex items-center justify-center">
+            <canvas id="chartPostos"></canvas>
+          </div>
+        </div>
+
+        <div class="tab-bg-container flex flex-col">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xs font-bold text-slate-200 flex items-center gap-2 uppercase tracking-wider">
+              <i data-lucide="shield-alert" class="text-rose-400 w-4 h-4"></i> Top CIDs Diagnósticos
+            </h3>
+            <span id="tagSigiloCid" class="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+              Acesso Clínico
+            </span>
+          </div>
+          <div class="relative flex-1 min-h-[260px] flex items-center justify-center">
+            <canvas id="chartCid"></canvas>
+            <div id="lockCidMessage" class="hidden absolute inset-0 bg-[#1e293b]/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center rounded-lg border border-[#334155]">
+              <i data-lucide="lock" class="w-8 h-8 text-slate-500 mb-2"></i>
+              <p class="text-xs font-bold text-slate-200">Sigilo Médico Preservado (LGPD / CFM)</p>
+              <p class="text-[11px] text-slate-400 mt-1 max-w-xs">O perfil Gestor/Operacional acessa dados consolidados sem exposição dos códigos e diagnósticos de CIDs.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- GRÁFICO DE ABSENTEÍSMO POR SETOR (100% DE LARGURA - ABAIXO DAS ROSCAS) -->
+      <section class="tab-bg-container flex flex-col">
+        <h3 class="text-xs font-bold text-slate-200 mb-4 flex items-center gap-2 uppercase tracking-wider">
+          <i data-lucide="building-2" class="text-emerald-400 w-4 h-4"></i> Absenteísmo por Setor (Visão Geral 100%)
+        </h3>
+        <div class="relative w-full min-h-[280px]">
+          <canvas id="chartSetores"></canvas>
+        </div>
+      </section>
+
+      <!-- TELA DIVIDIDA 50%/50% -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- COLUNA ESQUERDA: ATESTADOS PROCESSADOS -->
+        <div class="tab-bg-container overflow-hidden flex flex-col justify-between space-y-3">
+          <div>
+            <div class="px-2 py-1.5 border-b border-slate-700 flex flex-wrap justify-between items-center gap-3">
+              <h3 class="text-xs font-bold text-slate-200 flex items-center gap-2 uppercase tracking-wider">
+                <i data-lucide="clipboard-list" class="w-4 h-4 text-emerald-400"></i> Atestados Processados
+              </h3>
+              
+              <div class="flex items-center gap-2">
+                <input type="text" id="buscaTabela" oninput="filtrarTabelaTexto()" placeholder="Buscar colaborador..." class="text-xs p-1.5 border border-slate-600 rounded outline-none focus:ring-1 focus:ring-emerald-500 bg-[#0f172a] text-slate-200 placeholder-slate-500 w-36" />
+                <span id="contadorRegistros" class="text-xs font-semibold text-slate-400">0</span>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto max-h-[380px] rounded-lg border border-slate-700 bg-[#0f172a] mt-3">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead class="bg-[#1e293b] text-slate-300 font-semibold sticky top-0 border-b border-slate-700">
+                  <tr>
+                    <th class="p-2.5">Crachá (Ficha)</th>
+                    <th class="p-2.5">Colaborador</th>
+                    <th class="p-2.5">Loja</th>
+                    <th class="p-2.5">Setor</th>
+                    <th class="p-2.5 text-center">Qtde At.</th>
+                  </tr>
+                </thead>
+                <tbody id="tabelaAtestadosBody" class="divide-y divide-slate-800 text-slate-300">
+                  <tr>
+                    <td colspan="5" class="p-6 text-center text-slate-500">Nenhum registro. Suba os arquivos Excel.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="px-2 pt-2 border-t border-slate-700 flex justify-between items-center text-xs">
+            <span id="infoPaginacao" class="text-slate-400">Pág. 1</span>
+            <div class="flex gap-2">
+              <button onclick="mudarPagina(-1)" class="px-2.5 py-1 bg-[#1e293b] border border-slate-600 hover:bg-slate-700 rounded font-semibold text-slate-300 transition shadow-sm">Ant.</button>
+              <button onclick="mudarPagina(1)" class="px-2.5 py-1 bg-[#1e293b] border border-slate-600 hover:bg-slate-700 rounded font-semibold text-slate-300 transition shadow-sm">Próx.</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUNA DIREITA: TOP 30 ATESTADOS -->
+        <div class="tab-bg-container overflow-hidden flex flex-col justify-between space-y-3">
+          <div>
+            <div class="px-2 pb-2.5 border-b border-slate-700 flex flex-col gap-2.5">
+              <div class="flex justify-between items-center">
+                <h3 class="text-xs font-bold text-slate-200 flex items-center gap-2 uppercase tracking-wider">
+                  <i data-lucide="award" class="w-4 h-4 text-amber-400"></i> Top 30 Maiores Atestados por Colaborador
+                </h3>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">Ranking</span>
+              </div>
+
+              <!-- Filtros e Ordenação do Top 30 -->
+              <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                <select id="top30FiltroAno" onchange="renderizarTop30()" class="bg-[#0f172a] text-slate-200 rounded p-1.5 border border-slate-700 outline-none">
+                  <option value="">Todos Anos</option>
+                </select>
+                <select id="top30FiltroMes" onchange="renderizarTop30()" class="bg-[#0f172a] text-slate-200 rounded p-1.5 border border-slate-700 outline-none">
+                  <option value="">Todos Meses</option>
+                  <option value="1">Jan</option><option value="2">Fev</option><option value="3">Mar</option>
+                  <option value="4">Abr</option><option value="5">Mai</option><option value="6">Jun</option>
+                  <option value="7">Jul</option><option value="8">Ago</option><option value="9">Set</option>
+                  <option value="10">Out</option><option value="11">Nov</option><option value="12">Dez</option>
+                </select>
+                <select id="top30FiltroFilial" onchange="renderizarTop30()" class="bg-[#0f172a] text-slate-200 rounded p-1.5 border border-slate-700 outline-none">
+                  <option value="">Todas Lojas</option>
+                </select>
+                <select id="top30FiltroSetor" onchange="renderizarTop30()" class="bg-[#0f172a] text-slate-200 rounded p-1.5 border border-slate-700 outline-none">
+                  <option value="">Todos Setores</option>
+                </select>
+                <select id="top30Ordem" onchange="renderizarTop30()" class="bg-[#0f172a] text-amber-400 font-bold rounded p-1.5 border border-slate-700 outline-none">
+                  <option value="desc">⬇ Maior p/ Menor</option>
+                  <option value="asc">⬆ Menor p/ Maior</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto max-h-[350px] rounded-lg border border-slate-700 bg-[#0f172a] mt-3">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead class="bg-[#1e293b] text-slate-300 font-semibold sticky top-0 border-b border-slate-700">
+                  <tr>
+                    <th class="p-2.5">#</th>
+                    <th class="p-2.5">Crachá</th>
+                    <th class="p-2.5">Colaborador</th>
+                    <th class="p-2.5">Setor</th>
+                    <th class="p-2.5 text-center">QTD. Ates. / Dias</th>
+                  </tr>
+                </thead>
+                <tbody id="tabelaTop30Body" class="divide-y divide-slate-800 text-slate-300">
+                  <tr>
+                    <td colspan="5" class="p-6 text-center text-slate-500">Nenhum registro no ranking.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="px-2 pt-1 text-right text-[11px] text-slate-400">
+            Clique no nome do colaborador para abrir a Ficha / Prontuário Médico.
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+    <!-- SEÇÃO: COMPARATIVO MÊS A MÊS -->
+    <div id="sec-comparativo" class="hidden space-y-6">
+      <section class="tab-bg-container space-y-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-700 pb-4">
+          <div>
+            <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <i data-lucide="git-compare" class="text-indigo-400 w-4 h-4"></i> Análise Comparativa Mês a Mês
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Indicadores de variação com sinalização limpa e intuitiva.</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3 text-xs">
+            <div class="flex items-center gap-1.5">
+              <label class="font-semibold text-slate-400">De:</label>
+              <select id="compAnoInicio" class="bg-[#0f172a] text-slate-200 border border-slate-600 rounded px-2 py-1 outline-none font-semibold"></select>
+              <select id="compMesInicio" class="bg-[#0f172a] text-slate-200 border border-slate-600 rounded px-2 py-1 outline-none font-semibold">
+                <option value="1">Jan</option><option value="2">Fev</option><option value="3">Mar</option>
+                <option value="4">Abr</option><option value="5">Mai</option><option value="6">Jun</option>
+                <option value="7">Jul</option><option value="8">Ago</option><option value="9">Set</option>
+                <option value="10">Out</option><option value="11">Nov</option><option value="12">Dez</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <label class="font-semibold text-slate-400">Até:</label>
+              <select id="compAnoFim" class="bg-[#0f172a] text-slate-200 border border-slate-600 rounded px-2 py-1 outline-none font-semibold"></select>
+              <select id="compMesFim" class="bg-[#0f172a] text-slate-200 border border-slate-600 rounded px-2 py-1 outline-none font-semibold">
+                <option value="1">Jan</option><option value="2">Fev</option><option value="3">Mar</option>
+                <option value="4">Abr</option><option value="5">Mai</option><option value="6">Jun</option>
+                <option value="7">Jul</option><option value="8">Ago</option><option value="9">Set</option>
+                <option value="10">Out</option><option value="11">Nov</option><option value="12" selected>Dez</option>
+              </select>
+            </div>
+
+            <button onclick="gerarComparativo()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1 shadow-sm">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Comparar
+            </button>
+          </div>
+        </div>
+
+        <!-- CARDS DE COMPARAÇÃO ATUALIZADOS: SEM NÚMEROS GRUMOSOS, MAIORES E CENTRALIZADOS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          <div class="p-6 bg-[#0f172a] rounded-xl border border-slate-700 shadow-sm flex flex-col items-center justify-center text-center space-y-3">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Variação de Atestados</span>
+            <div id="deltaAtestados" class="text-base font-bold px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 bg-slate-800 text-slate-300 w-full">--</div>
+          </div>
+
+          <div class="p-6 bg-[#0f172a] rounded-xl border border-slate-700 shadow-sm flex flex-col items-center justify-center text-center space-y-3">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Variação de Dias Perdidos</span>
+            <div id="deltaDias" class="text-base font-bold px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 bg-slate-800 text-slate-300 w-full">--</div>
+          </div>
+
+          <div class="p-6 bg-[#0f172a] rounded-xl border border-slate-700 shadow-sm flex flex-col items-center justify-center text-center space-y-3">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">CIDs Distintas</span>
+            <div id="deltaCids" class="text-base font-bold px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 bg-slate-800 text-slate-300 w-full">--</div>
+          </div>
+        </div>
+
+        <div class="bg-[#0f172a] p-4 rounded-xl border border-slate-700 shadow-sm mt-4">
+          <h3 class="text-xs font-bold text-slate-300 mb-3 uppercase tracking-wider">Evolução Mensal no Período Selecionado</h3>
+          <div class="relative min-h-[220px]">
+            <canvas id="chartEvolucaoComparativa"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-[#0f172a] p-4 rounded-xl border border-slate-700 shadow-sm mt-4">
+          <h3 class="text-xs font-bold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-2">
+            <i data-lucide="bar-chart-2" class="w-4 h-4 text-indigo-400"></i> Comparativo Top 5 CIDs: Mês Inicial vs. Mês Final
+          </h3>
+          <div class="relative min-h-[280px]">
+            <canvas id="chartTopCidsComparativo"></canvas>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- SEÇÃO: PRONTUARIO POR MATRÍCULA -->
+    <div id="sec-prontuario" class="hidden space-y-6">
+      <section class="tab-bg-container space-y-4">
+        <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="search" class="text-emerald-400 w-4 h-4"></i> Localizar Ficha Médica / Colaborador
+        </h2>
+        <div class="flex gap-3">
+          <input type="text" id="buscaMatricula" placeholder="Digite a Ficha / Crachá (ex: 567) ou Nome do Colaborador..." class="flex-1 text-xs p-2.5 border border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-[#0f172a] text-slate-200 placeholder-slate-500" />
+          <button onclick="buscarProntuario()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="user-search" class="w-4 h-4"></i> Visualizar Histórico
+          </button>
+        </div>
+      </section>
+
+      <section id="resultadoProntuario" class="hidden tab-bg-container space-y-6">
+        <div class="border-b border-slate-700 pb-4 flex justify-between items-start">
+          <div>
+            <h3 id="pNome" class="text-lg font-bold text-slate-100">---</h3>
+            <p id="pDetalhes" class="text-sm font-medium text-slate-400 mt-1">Crachá/Ficha: --- | Cargo: --- | Filial: --- | Setor: ---</p>
+          </div>
+          <span class="bg-emerald-950 text-emerald-300 border border-emerald-800 px-3 py-1 rounded-full text-xs font-bold">Ficha Médica</span>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-bold text-slate-200 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+            <i data-lucide="history" class="w-4 h-4 text-emerald-400"></i> Histórico Cronológico
+          </h4>
+          <div id="pLinhaTempo" class="space-y-4 border-l-2 border-emerald-500 pl-4 ml-2"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- SEÇÃO: ALERTAS & GATILHOS MÉDICOS -->
+    <div id="sec-alertas" class="hidden space-y-6">
+      <section class="tab-bg-container space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+          <div>
+            <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <i data-lucide="bell-ring" class="text-rose-400 w-4 h-4"></i> Painel de Alertas & Vigilância Epidemiológica
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Monitoramento automático de afastamentos INSS (>15 dias) e reincidências de CIDs.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-slate-400">Atestados de Atenção:</span>
+            <span id="kpiAlertasQtde" class="bg-rose-600 text-white font-extrabold text-sm px-3 py-1 rounded-full shadow-sm">0</span>
+          </div>
+        </div>
+
+        <div id="listaAlertas" class="space-y-3">
+          <div class="p-4 bg-[#0f172a] rounded-lg border border-slate-700 text-xs text-slate-400 text-center shadow-sm">
+            Nenhum alerta crítico disparado até o momento.
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- MODAL DE RESET DA BASE -->
+  <div id="modalReset" class="fixed inset-0 bg-[#0f172a]/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-[#1e293b] rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-700 space-y-4 text-slate-100">
+      <div class="flex items-center gap-3 text-rose-400">
+        <div class="p-2 bg-rose-950 rounded-lg border border-rose-800"><i data-lucide="alert-triangle"></i></div>
+        <h3 class="text-base font-bold text-slate-100">Reset Total da Base de Dados</h3>
+      </div>
+      
+      <p class="text-xs text-slate-300 leading-relaxed">Esta ação excluirá permanentemente todos os registros acumulados na sessão.</p>
+
+      <div class="space-y-2">
+        <label class="block text-xs font-bold text-slate-300">Senha Mestre do Administrador (ADM):</label>
+        <input type="password" id="inputSenhaAdm" placeholder="Digite 'admin123' para autorizar" class="w-full text-xs p-2.5 bg-[#0f172a] text-slate-200 border border-slate-600 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none placeholder-slate-600" />
+        <span id="erroSenhaReset" class="text-[11px] text-rose-400 hidden font-semibold">Senha incorreta ou perfil sem autorização!</span>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="fecharModalReset()" class="px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 rounded-lg transition">Cancelar</button>
+        <button onclick="executarResetBase()" class="px-4 py-2 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition shadow-sm">Confirmar Expurgo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LÓGICA JAVASCRIPT INTEGRADA -->
+  <script>
+    let dadosAtestados = [];
+    let dadosAtendimentos = [];
+    let mapaEmpregados = {};
+    let dadosFiltradosAtestados = [];
+    let dadosFiltradosAtendimentos = [];
+    let dadosColaboradoresAgrupados = [];
+    let roleAtual = "ADM";
+
+    // Instâncias dos Gráficos
+    let chartAtestadosPorLojaInstancia = null;
+    let chartDiasPorLojaInstancia = null;
+    let chartAtendimentosPizzaInstancia = null;
+    let chartSetoresInstancia = null;
+    let chartCidInstancia = null;
+    let chartPostosInstancia = null;
+    let chartEvolucaoInstancia = null;
+    let chartTopCidsComparativoInstancia = null;
+
+    // PAGINAÇÃO
+    let paginaAtual = 1;
+    const itensPorPagina = 50;
+
+    Chart.register(ChartDataLabels);
+
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+      inicializarGraficos();
+    });
+
+    function mudarAba(aba) {
+      document.getElementById("sec-dashboard").classList.add("hidden");
+      document.getElementById("sec-comparativo").classList.add("hidden");
+      document.getElementById("sec-prontuario").classList.add("hidden");
+      document.getElementById("sec-alertas").classList.add("hidden");
+
+      document.getElementById("tab-dashboard").classList.remove("tab-active");
+      document.getElementById("tab-comparativo").classList.remove("tab-active");
+      document.getElementById("tab-prontuario").classList.remove("tab-active");
+      document.getElementById("tab-alertas").classList.remove("tab-active");
+
+      document.getElementById(`sec-${aba}`).classList.remove("hidden");
+      document.getElementById(`tab-${aba}`).classList.add("tab-active");
+
+      if (aba === 'comparativo') {
+        gerarComparativo();
+      }
+    }
+
+    function formatarData(dataRaw) {
+      if (!dataRaw) return "N/A";
+      if (typeof dataRaw === 'number') {
+        const d = XLSX.SSF.parse_date_code(dataRaw);
+        if (d) return `${String(d.d).padStart(2,'0')}/${String(d.m).padStart(2,'0')}/${d.y}`;
+      }
+      const str = String(dataRaw).split('T')[0].split(' ')[0];
+      const parts = str.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return str;
+    }
+
+    function extrairAnoEMes(dataRaw) {
+      if (!dataRaw) return { ano: "", mes: "" };
+      if (typeof dataRaw === 'number') {
+        const d = XLSX.SSF.parse_date_code(dataRaw);
+        if (d) return { ano: String(d.y), mes: String(d.m) };
+      } else {
+        const str = String(dataRaw).split('T')[0].split(' ')[0];
+        const parts = str.split('-');
+        if (parts.length === 3) return { ano: parts[0], mes: String(parseInt(parts[1])) };
+      }
+      return { ano: "", mes: "" };
+    }
+
+    function mapearChaveLoja(filialRaw) {
+      if (filialRaw === undefined || filialRaw === null) return "Loja 1";
+      const str = String(filialRaw).trim().toUpperCase();
+      
+      const match = str.match(/\d+/);
+      const num = match ? parseInt(match[0]) : null;
+
+      if (num === 1 || str === "1" || str.includes("LOJA 1") || str.includes("LOJA 01")) return "Loja 1";
+      if (num === 8 || str === "8" || str.includes("LOJA 2") || str.includes("LOJA 02") || str.includes("FILIAL 8")) return "Loja 2";
+      if (num === 9 || str === "9" || str.includes("LOJA 3") || str.includes("LOJA 03") || str.includes("FILIAL 9")) return "Loja 3";
+      if (num === 10 || str === "10" || str.includes("LOJA 4") || str.includes("LOJA 04") || str.includes("FILIAL 10")) return "Loja 4";
+
+      return "Loja 1";
+    }
+
+    function MapearSetorPorCargo(cargo) {
+      if (!cargo) return "Administrativo";
+      const cNorm = String(cargo).toUpperCase().trim().replace(/Ç/g, "C").replace(/[ÃÁÀÂ]/g, "A").replace(/[ÉÊ]/g, "E").replace(/[Í]/g, "I").replace(/[ÕÓÔ]/g, "O").replace(/[Ú]/g, "U");
+
+      if (["CAIXA", "EMPACOTADOR", "RECEPCIONISTA", "FRENTE DE LOJA", "BALCONISTA DE QUIOSQUE"].some(k => cNorm.includes(k))) return "Frente de Loja";
+      if (["COZINHA", "PADARIA", "ROTISSERIE", "CONFEITEIR", "ALIMENTACAO"].some(k => cNorm.includes(k))) return "Alimentação";
+      if (["ACOGUE", "PERECIVEIS", "FRIOS"].some(k => cNorm.includes(k))) return "Açougue";
+      if (cNorm.includes("HORTIFRUTI")) return "Hortifruti";
+      if (["REPOSITOR", "PROMOTOR", "CARTAZISTA", "GERENTE", "REPOSICAO"].some(k => cNorm.includes(k))) return "Reposição";
+      if (["DEPOSITO", "CONFERENTE", "ALMOXARIFE", "ESTOQUE"].some(k => cNorm.includes(k))) return "Depósito";
+      if (["MOTORISTA", "ENTREGA"].some(k => cNorm.includes(k))) return "Entrega";
+      if (["LIMPEZA", "FAXINEIR", "ZELADOR"].some(k => cNorm.includes(k))) return "Zeladoria";
+      if (["MANUTENCAO"].some(k => cNorm.includes(k))) return "Manutenção";
+
+      return "Administrativo";
+    }
+
+    function parseHorasPuras(valHoras) {
+      let hParsed = 0;
+      if (valHoras !== undefined && valHoras !== null && valHoras !== "") {
+        if (typeof valHoras === 'string') {
+          let v = valHoras.trim();
+          if (v.includes(':')) {
+            let parts = v.split(':');
+            let h = parseFloat(parts[0]) || 0;
+            let m = parseFloat(parts[1]) || 0;
+            let s = parseFloat(parts[2]) || 0;
+            hParsed = h + (m / 60) + (s / 3600);
+          } else {
+            let num = parseFloat(v.replace(',', '.'));
+            if (!isNaN(num)) {
+              hParsed = (num > 0 && num < 1) ? num * 24 : num;
+            }
+          }
+        } else if (typeof valHoras === 'number') {
+          hParsed = (valHoras > 0 && valHoras < 1) ? valHoras * 24 : valHoras;
+        }
+      }
+      return hParsed;
+    }
+
+    function parseNumero(val) {
+      if (val === undefined || val === null || val === "") return 0;
+      if (typeof val === 'number') return isNaN(val) ? 0 : val;
+      const str = String(val).replace(',', '.').trim();
+      const num = parseFloat(str);
+      return isNaN(num) ? 0 : num;
+    }
+
+    function obterValorColuna(row, chavesPossiveis) {
+      for (let chave of chavesPossiveis) {
+        for (let k in row) {
+          if (k.trim().toLowerCase() === chave.toLowerCase()) {
+            return row[k];
+          }
+        }
+      }
+      return undefined;
+    }
+
+    function processarArquivo(e, tipo) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      atualizarStatusCarga(`Lendo ${tipo}... aguarde.`);
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+
+          if (tipo === 'EMPREGADOS') {
+            json.forEach(row => {
+              const cad = String(obterValorColuna(row, ["Cadastro", "Matrícula", "Ficha Médica", "Codigo", "ID"]) || "").trim();
+              if (cad) {
+                mapaEmpregados[cad] = {
+                  cargo: obterValorColuna(row, ["Título Reduzido (Cargo)", "Cargo", "Função", "Titulo"]) || "",
+                  filial: obterValorColuna(row, ["Filial", "Apelido (Filial)", "Loja"]) || "1"
+                };
+              }
+            });
+            atualizarStatusCarga(`EMPREGADOS: ${Object.keys(mapaEmpregados).length} carregados.`);
+          } else if (tipo === 'ATESTADO') {
+            dadosAtestados = json.map(row => {
+              const ficha = String(obterValorColuna(row, ["Ficha Médica", "Matrícula", "Cadastro", "ID"]) || "").trim();
+              const infoEmp = mapaEmpregados[ficha] || {};
+              const cargo = infoEmp.cargo || obterValorColuna(row, ["Cargo", "Função"]) || "";
+              
+              const filialValorOriginal = obterValorColuna(row, ["Filial", "Apelido (Filial)", "Loja"]) !== undefined ? obterValorColuna(row, ["Filial", "Apelido (Filial)", "Loja"]) : infoEmp.filial;
+              const lojaChave = mapearChaveLoja(filialValorOriginal);
+
+              let cidRaw = obterValorColuna(row, ["CID-10", "CID", "Diagnostico"]);
+              let cidFinal = "SEM CID";
+              if (cidRaw !== undefined && cidRaw !== null && String(cidRaw).trim() !== "") {
+                cidFinal = String(cidRaw).trim().toUpperCase();
+              }
+
+              const postoAtendimento = obterValorColuna(row, ["Posto de Atendimento", "Posto Atendimento", "Descrição (Posto)", "Posto"]) || "Não Informado";
+              const atendenteNome = obterValorColuna(row, ["Nome(Atendente)", "Atendente", "Profissional"]) || "Profissional de Saúde";
+
+              const dtEmissaoRaw = obterValorColuna(row, ["Emissão Atestado", "Data Emissão", "Emissao", "Data"]) || "";
+              const dtTerminoRaw = obterValorColuna(row, ["Término Atestado", "Data Término", "Termino"]) || "";
+              const tempoAnoMes = extrairAnoEMes(dtEmissaoRaw);
+
+              const diasVal = parseNumero(obterValorColuna(row, ["Tempo em Dias", "Dias", "Qtde Dias"]));
+              const horasPurasVal = parseHorasPuras(obterValorColuna(row, ["Tempo em Horas", "Horas"]));
+
+              return {
+                matricula: ficha,
+                nome: obterValorColuna(row, ["Nome(Ficha Médica)", "Nome", "Colaborador", "Funcionário"]) || "Colaborador",
+                cargo: cargo,
+                filial: `Loja ${lojaChave.replace('Loja ', '')} (Cód. ${filialValorOriginal})`,
+                lojaChave: lojaChave,
+                setor: MapearSetorPorCargo(cargo),
+                dias: diasVal,
+                horas: horasPurasVal,
+                cid: cidFinal,
+                postoAtendimento: postoAtendimento,
+                atendente: atendenteNome,
+                dataEmissao: formatarData(dtEmissaoRaw),
+                dataTermino: formatarData(dtTerminoRaw),
+                dtEmissaoRaw: dtEmissaoRaw,
+                ano: tempoAnoMes.ano,
+                mes: tempoAnoMes.mes
+              };
+            });
+            dadosFiltradosAtestados = [...dadosAtestados];
+            populaFiltros();
+            atualizarStatusCarga(`ATESTADOS: ${dadosAtestados.length} carregados.`);
+          } else if (tipo === 'ATENDIMENTO') {
+            dadosAtendimentos = json.map(row => {
+              const ficha = String(obterValorColuna(row, ["Ficha Médica", "Matrícula", "Cadastro", "ID"]) || "").trim();
+              const infoEmp = mapaEmpregados[ficha] || {};
+              const dtAtendRaw = obterValorColuna(row, ["Atendimento", "Data Atendimento", "Data", "Emissao"]) || "";
+              const tempoAnoMes = extrairAnoEMes(dtAtendRaw);
+
+              return {
+                matricula: ficha,
+                nome: obterValorColuna(row, ["Nome (Ficha Médica)", "Nome", "Colaborador"]) || "Colaborador",
+                cargo: infoEmp.cargo || "",
+                filial: infoEmp.filial || "",
+                lojaChave: mapearChaveLoja(infoEmp.filial),
+                data: formatarData(dtAtendRaw),
+                dataRaw: dtAtendRaw,
+                ano: tempoAnoMes.ano,
+                mes: tempoAnoMes.mes,
+                tipoExame: obterValorColuna(row, ["Descrição (Ocorrência)", "Tipo Exame", "Exame", "Ocorrência"]) || "Exame Ocupacional",
+                posto: obterValorColuna(row, ["Descrição (Posto)", "Posto"]) || "Ambulatório"
+              };
+            });
+            dadosFiltradosAtendimentos = [...dadosAtendimentos];
+            atualizarStatusCarga(`ATENDIMENTOS: ${dadosAtendimentos.length} carregados.`);
+          }
+
+          paginaAtual = 1;
+          recalcularDashboard();
+          verificarAlertas();
+        } catch (err) {
+          console.error("Erro ao processar planilha:", err);
+          alert("Erro ao ler o arquivo Excel. Verifique se o arquivo está corrompido ou se o formato é compatível (.xlsx / .xls).");
+          atualizarStatusCarga("Erro na leitura do arquivo.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function populaFiltros() {
+      const selectAno = document.getElementById("filtroAno");
+      const selectFilial = document.getElementById("filtroFilial");
+      const selectSetor = document.getElementById("filtroSetor");
+      const selectCID = document.getElementById("filtroCID");
+
+      const top30Ano = document.getElementById("top30FiltroAno");
+      const top30Filial = document.getElementById("top30FiltroFilial");
+      const top30Setor = document.getElementById("top30FiltroSetor");
+
+      const compAnoInicio = document.getElementById("compAnoInicio");
+      const compAnoFim = document.getElementById("compAnoFim");
+
+      const anos = [...new Set(dadosAtestados.map(d => d.ano).filter(Boolean))].sort();
+      const filiais = [...new Set(dadosAtestados.map(d => d.lojaChave).filter(Boolean))].sort();
+      const setores = [...new Set(dadosAtestados.map(d => d.setor))].sort();
+      const cids = [...new Set(dadosAtestados.map(d => d.cid))].sort();
+
+      selectAno.innerHTML = '<option value="">Todos os Anos</option>';
+      anos.forEach(a => selectAno.innerHTML += `<option value="${a}">${a}</option>`);
+
+      top30Ano.innerHTML = '<option value="">Todos Anos</option>';
+      anos.forEach(a => top30Ano.innerHTML += `<option value="${a}">${a}</option>`);
+
+      selectFilial.innerHTML = '<option value="">Todas as Lojas (1, 2, 3, 4)</option>';
+      filiais.forEach(f => selectFilial.innerHTML += `<option value="${f}">${f}</option>`);
+
+      top30Filial.innerHTML = '<option value="">Todas Lojas</option>';
+      filiais.forEach(f => top30Filial.innerHTML += `<option value="${f}">${f}</option>`);
+
+      selectSetor.innerHTML = '<option value="">Todos os Setores</option>';
+      setores.forEach(s => selectSetor.innerHTML += `<option value="${s}">${s}</option>`);
+
+      top30Setor.innerHTML = '<option value="">Todos Setores</option>';
+      setores.forEach(s => top30Setor.innerHTML += `<option value="${s}">${s}</option>`);
+
+      selectCID.innerHTML = '<option value="">Todas as CIDs</option>';
+      cids.forEach(c => selectCID.innerHTML += `<option value="${c}">${c}</option>`);
+
+      compAnoInicio.innerHTML = '';
+      compAnoFim.innerHTML = '';
+      anos.forEach(a => {
+        compAnoInicio.innerHTML += `<option value="${a}">${a}</option>`;
+        compAnoFim.innerHTML += `<option value="${a}">${a}</option>`;
+      });
+      if (anos.length > 0) {
+        compAnoInicio.value = anos[0];
+        compAnoFim.value = anos[anos.length - 1];
+      }
+    }
+
+    function aplicarFiltrosGlobais() {
+      const fAno = document.getElementById("filtroAno").value;
+      const fMes = document.getElementById("filtroMes").value;
+      const fFilial = document.getElementById("filtroFilial").value;
+      const fSetor = document.getElementById("filtroSetor").value;
+      const fCID = document.getElementById("filtroCID").value;
+
+      dadosFiltradosAtestados = dadosAtestados.filter(item => {
+        const matchAno = !fAno || item.ano === fAno;
+        const matchMes = !fMes || item.mes === fMes;
+        const matchFilial = !fFilial || item.lojaChave === fFilial;
+        const matchSetor = !fSetor || item.setor === fSetor;
+        const matchCID = !fCID || item.cid === fCID;
+        return matchAno && matchMes && matchFilial && matchSetor && matchCID;
+      });
+
+      dadosFiltradosAtendimentos = dadosAtendimentos.filter(item => {
+        const matchAno = !fAno || item.ano === fAno;
+        const matchMes = !fMes || item.mes === fMes;
+        const matchFilial = !fFilial || item.lojaChave === fFilial;
+        return matchAno && matchMes && matchFilial;
+      });
+
+      paginaAtual = 1;
+      recalcularDashboard();
+    }
+
+    function filtrarTabelaTexto() {
+      const busca = document.getElementById("buscaTabela").value.toLowerCase().trim();
+      const fAno = document.getElementById("filtroAno").value;
+      const fMes = document.getElementById("filtroMes").value;
+      const fFilial = document.getElementById("filtroFilial").value;
+      const fSetor = document.getElementById("filtroSetor").value;
+      const fCID = document.getElementById("filtroCID").value;
+
+      dadosFiltradosAtestados = dadosAtestados.filter(item => {
+        const matchAno = !fAno || item.ano === fAno;
+        const matchMes = !fMes || item.mes === fMes;
+        const matchFilial = !fFilial || item.lojaChave === fFilial;
+        const matchSetor = !fSetor || item.setor === fSetor;
+        const matchCID = !fCID || item.cid === fCID;
+        const matchTexto = !busca || item.nome.toLowerCase().includes(busca) || item.matricula.toLowerCase().includes(busca);
+        return matchAno && matchMes && matchFilial && matchSetor && matchCID && matchTexto;
+      });
+
+      paginaAtual = 1;
+      agruparColaboradores();
+      renderizarTabela();
+    }
+
+    function limparFiltros() {
+      document.getElementById("filtroAno").value = "";
+      document.getElementById("filtroMes").value = "";
+      document.getElementById("filtroFilial").value = "";
+      document.getElementById("filtroSetor").value = "";
+      document.getElementById("filtroCID").value = "";
+      document.getElementById("buscaTabela").value = "";
+      dadosFiltradosAtestados = [...dadosAtestados];
+      dadosFiltradosAtendimentos = [...dadosAtendimentos];
+      paginaAtual = 1;
+      recalcularDashboard();
+    }
+
+    function agruparColaboradores() {
+      const mapaAgrupado = {};
+      dadosFiltradosAtestados.forEach(item => {
+        if (!mapaAgrupado[item.matricula]) {
+          mapaAgrupado[item.matricula] = {
+            matricula: item.matricula,
+            nome: item.nome,
+            filial: item.lojaChave,
+            setor: item.setor,
+            qtdeAtestados: 0
+          };
+        }
+        mapaAgrupado[item.matricula].qtdeAtestados += 1;
+      });
+      dadosColaboradoresAgrupados = Object.values(mapaAgrupado).sort((a,b) => b.qtdeAtestados - a.qtdeAtestados);
+    }
+
+    function recalcularDashboard() {
+      const totalAtestados = dadosFiltradosAtestados.length;
+      const totalDias = dadosFiltradosAtestados.reduce((acc, curr) => acc + curr.dias, 0);
+      const totalHorasPuras = dadosFiltradosAtestados.reduce((acc, curr) => acc + curr.horas, 0);
+      
+      const funcUnicos = new Set(dadosFiltradosAtestados.map(d => d.matricula)).size;
+      const indiceGravidade = totalAtestados > 0 ? (totalDias / totalAtestados).toFixed(1) : "0.0";
+      const totalExames = dadosFiltradosAtendimentos.length;
+
+      let qtdeSaudeMental = 0;
+      let diasSaudeMental = 0;
+      let qtdeLerDort = 0;
+      let diasLerDort = 0;
+
+      dadosFiltradosAtestados.forEach(d => {
+        const cidU = d.cid.trim().toUpperCase();
+        if (cidU.startsWith('F')) {
+          qtdeSaudeMental++;
+          diasSaudeMental += d.dias;
+        }
+        if (cidU.startsWith('M')) {
+          qtdeLerDort++;
+          diasLerDort += d.dias;
+        }
+      });
+
+      const pctSM = totalAtestados > 0 ? ((qtdeSaudeMental / totalAtestados) * 100).toFixed(1) + "%" : "0.0%";
+      const indiceSM = qtdeSaudeMental > 0 ? (diasSaudeMental / qtdeSaudeMental).toFixed(1) : "0.0";
+
+      const pctLD = totalAtestados > 0 ? ((qtdeLerDort / totalAtestados) * 100).toFixed(1) + "%" : "0.0%";
+      const indiceLD = qtdeLerDort > 0 ? (diasLerDort / qtdeLerDort).toFixed(1) : "0.0";
+
+      document.getElementById("kpiTotalAtestados").innerText = totalAtestados.toLocaleString('pt-BR');
+      document.getElementById("kpiTotalDias").innerText = totalDias.toLocaleString('pt-BR');
+      document.getElementById("kpiTotalHoras").innerText = totalHorasPuras.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "h";
+      document.getElementById("kpiFuncAfastados").innerText = funcUnicos.toLocaleString('pt-BR');
+      document.getElementById("kpiIndiceGravidade").innerText = indiceGravidade;
+      document.getElementById("kpiExamesOcupacionais").innerText = totalExames.toLocaleString('pt-BR');
+
+      document.getElementById("kpiSaudeMental").innerText = qtdeSaudeMental.toLocaleString('pt-BR');
+      document.getElementById("kpiSMDias").innerText = diasSaudeMental.toLocaleString('pt-BR');
+      document.getElementById("kpiSMIndice").innerText = indiceSM;
+      document.getElementById("kpiSMPercent").innerText = `${pctSM} do total`;
+
+      document.getElementById("kpiLerDort").innerText = qtdeLerDort.toLocaleString('pt-BR');
+      document.getElementById("kpiLDDias").innerText = diasLerDort.toLocaleString('pt-BR');
+      document.getElementById("kpiLDIndice").innerText = indiceLD;
+      document.getElementById("kpiLDPercent").innerText = `${pctLD} do total`;
+
+      agruparColaboradores();
+      renderizarTabela();
+      renderizarTop30();
+      atualizarGraficos();
+    }
+
+    function renderizarTabela() {
+      const tbody = document.getElementById("tabelaAtestadosBody");
+      const total = dadosColaboradoresAgrupados.length;
+      document.getElementById("contadorRegistros").innerText = `${total.toLocaleString('pt-BR')} colabs`;
+      
+      if (total === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">Nenhum atestado encontrado.</td></tr>`;
+        document.getElementById("infoPaginacao").innerText = "Pág. 0";
+        return;
+      }
+
+      const totalPaginas = Math.ceil(total / itensPorPagina);
+      if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+      if (paginaAtual < 1) paginaAtual = 1;
+
+      const inicio = (paginaAtual - 1) * itensPorPagina;
+      const fim = inicio + itensPorPagina;
+      const paginaDados = dadosColaboradoresAgrupados.slice(inicio, fim);
+
+      let htmlRows = "";
+      paginaDados.forEach(row => {
+        htmlRows += `
+          <tr class="hover:bg-[#1e293b]/70 transition">
+            <td class="p-2.5 font-mono font-bold text-emerald-400">${row.matricula}</td>
+            <td class="p-2.5">
+              <button onclick="abrirProntuarioDireto('${row.matricula}')" class="font-bold text-slate-100 hover:text-emerald-300 hover:underline text-left">
+                ${row.nome}
+              </button>
+            </td>
+            <td class="p-2.5 text-slate-400 text-[11px]">${row.filial}</td>
+            <td class="p-2.5"><span class="bg-[#1e293b] text-slate-200 font-bold px-2 py-0.5 rounded text-[10px] border border-slate-700">${row.setor}</span></td>
+            <td class="p-2.5 font-extrabold text-emerald-400 text-center bg-emerald-950/40 rounded">${row.qtdeAtestados}</td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = htmlRows;
+      document.getElementById("infoPaginacao").innerText = `Pág. ${paginaAtual}/${totalPaginas}`;
+    }
+
+    function renderizarTop30() {
+      const tbody = document.getElementById("tabelaTop30Body");
+      const fAno = document.getElementById("top30FiltroAno").value;
+      const fMes = document.getElementById("top30FiltroMes").value;
+      const fFilial = document.getElementById("top30FiltroFilial").value;
+      const fSetor = document.getElementById("top30FiltroSetor").value;
+      const ordem = document.getElementById("top30Ordem").value;
+
+      const atestadosFiltradosTop30 = dadosAtestados.filter(item => {
+        const matchAno = !fAno || item.ano === fAno;
+        const matchMes = !fMes || item.mes === fMes;
+        const matchFilial = !fFilial || item.lojaChave === fFilial;
+        const matchSetor = !fSetor || item.setor === fSetor;
+        return matchAno && matchMes && matchFilial && matchSetor;
+      });
+
+      const mapaColabTop = {};
+      atestadosFiltradosTop30.forEach(item => {
+        if (!mapaColabTop[item.matricula]) {
+          mapaColabTop[item.matricula] = {
+            matricula: item.matricula,
+            nome: item.nome,
+            setor: item.setor,
+            diasTotal: 0,
+            qtdeAtestados: 0
+          };
+        }
+        mapaColabTop[item.matricula].diasTotal += item.dias;
+        mapaColabTop[item.matricula].qtdeAtestados += 1;
+      });
+
+      let colabsArray = Object.values(mapaColabTop);
+
+      colabsArray.sort((a, b) => {
+        if (ordem === 'desc') {
+          return b.qtdeAtestados - a.qtdeAtestados || b.diasTotal - a.diasTotal;
+        } else {
+          return a.qtdeAtestados - b.qtdeAtestados || a.diasTotal - b.diasTotal;
+        }
+      });
+
+      const top30Final = colabsArray.slice(0, 30);
+
+      if (top30Final.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">Nenhum registro para os filtros selecionados.</td></tr>`;
+        return;
+      }
+
+      let htmlRows = "";
+      top30Final.forEach((item, index) => {
+        htmlRows += `
+          <tr class="hover:bg-[#1e293b]/70 transition">
+            <td class="p-2.5 font-bold text-amber-400 align-middle">#${index + 1}</td>
+            <td class="p-2.5 font-mono font-bold text-emerald-400 align-middle">${item.matricula}</td>
+            <td class="p-2.5 font-semibold text-slate-200 align-middle">
+              <button onclick="abrirProntuarioDireto('${item.matricula}')" class="hover:text-amber-300 hover:underline text-left">
+                ${item.nome}
+              </button>
+            </td>
+            <td class="p-2.5 align-middle"><span class="bg-[#1e293b] text-slate-300 font-medium px-2 py-0.5 rounded text-[10px] border border-slate-700">${item.setor}</span></td>
+            <td class="p-2.5 text-center bg-amber-950/30 rounded align-middle">
+              <div class="font-black text-amber-400 text-sm leading-tight">${item.qtdeAtestados} <span class="text-[10px] font-normal text-amber-300">ates.</span></div>
+              <div class="text-[11px] font-bold text-slate-300 mt-0.5">${item.diasTotal} dias</div>
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = htmlRows;
+    }
+
+    function abrirProntuarioDireto(matricula) {
+      document.getElementById("buscaMatricula").value = matricula;
+      mudarAba("prontuario");
+      buscarProntuario();
+    }
+
+    function mudarPagina(delta) {
+      paginaAtual += delta;
+      renderizarTabela();
+    }
+
+    function inicializarGraficos() {
+      const styleDatalabels = {
+        anchor: 'end',
+        align: 'top',
+        color: '#f8fafc',
+        backgroundColor: '#1e293b',
+        borderColor: '#334155',
+        borderWidth: 1,
+        borderRadius: 4,
+        padding: 3,
+        font: { weight: 'bold', size: 11 },
+        formatter: Math.round
+      };
+
+      const ctxLojaAt = document.getElementById("chartAtestadosPorLoja").getContext("2d");
+      chartAtestadosPorLojaInstancia = new Chart(ctxLojaAt, {
+        type: "bar",
+        data: { labels: ["Loja 1", "Loja 2", "Loja 3", "Loja 4"], datasets: [{ label: "Atestados", data: [0, 0, 0, 0], backgroundColor: "#059669" }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, datalabels: styleDatalabels },
+          scales: { 
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            y: { grace: '20%', ticks: { color: '#94a3b8' }, grid: { color: '#334155' } } 
+          }
+        }
+      });
+
+      const ctxLojaDias = document.getElementById("chartDiasPorLoja").getContext("2d");
+      chartDiasPorLojaInstancia = new Chart(ctxLojaDias, {
+        type: "bar",
+        data: { labels: ["Loja 1", "Loja 2", "Loja 3", "Loja 4"], datasets: [{ label: "Dias Afastados", data: [0, 0, 0, 0], backgroundColor: "#d97706" }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, datalabels: styleDatalabels },
+          scales: { 
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            y: { grace: '20%', ticks: { color: '#94a3b8' }, grid: { color: '#334155' } } 
+          }
+        }
+      });
+
+      const ctxAtendPizza = document.getElementById("chartAtendimentosPizza").getContext("2d");
+      chartAtendimentosPizzaInstancia = new Chart(ctxAtendPizza, {
+        type: "doughnut",
+        data: { labels: [], datasets: [{ data: [], backgroundColor: ["#3b82f6", "#6366f1", "#8b5cf6", "#ec4899", "#10b981"] }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: '#cbd5e1', boxWidth: 12, font: { size: 10 } } },
+            datalabels: {
+              color: '#ffffff',
+              font: { weight: 'bold', size: 11 },
+              formatter: (value, ctx) => {
+                let sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                let pct = sum > 0 ? ((value * 100) / sum).toFixed(1) + "%" : "0%";
+                return `${pct}\n(${value})`;
+              },
+              textAlign: 'center'
+            }
+          }
+        }
+      });
+
+      const ctxSetores = document.getElementById("chartSetores").getContext("2d");
+      chartSetoresInstancia = new Chart(ctxSetores, {
+        type: "bar",
+        data: { labels: [], datasets: [{ label: "Atestados", data: [], backgroundColor: "#0284c7" }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, datalabels: styleDatalabels },
+          scales: { 
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            y: { grace: '20%', ticks: { color: '#94a3b8' }, grid: { color: '#334155' } } 
+          }
+        }
+      });
+
+      const ctxCid = document.getElementById("chartCid").getContext("2d");
+      chartCidInstancia = new Chart(ctxCid, {
+        type: "doughnut",
+        data: { labels: [], datasets: [{ data: [], backgroundColor: ["#e11d48", "#f97316", "#eab308", "#10b981", "#6366f1"] }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: '#cbd5e1', boxWidth: 12, font: { size: 10 } } },
+            datalabels: {
+              color: '#ffffff',
+              font: { weight: 'bold', size: 11 },
+              formatter: (value, ctx) => {
+                let sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                let pct = sum > 0 ? ((value * 100) / sum).toFixed(1) + "%" : "0%";
+                return `${pct}\n(${value})`;
+              },
+              textAlign: 'center'
+            }
+          }
+        }
+      });
+
+      const ctxPostos = document.getElementById("chartPostos").getContext("2d");
+      chartPostosInstancia = new Chart(ctxPostos, {
+        type: "doughnut",
+        data: { labels: [], datasets: [{ data: [], backgroundColor: ["#0ea5e9", "#14b8a6", "#10b981", "#6366f1", "#a855f7"] }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: '#cbd5e1', boxWidth: 12, font: { size: 10 } } },
+            datalabels: {
+              color: '#ffffff',
+              font: { weight: 'bold', size: 11 },
+              formatter: (value, ctx) => {
+                let sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                let pct = sum > 0 ? ((value * 100) / sum).toFixed(1) + "%" : "0%";
+                return `${pct}\n(${value})`;
+              },
+              textAlign: 'center'
+            }
+          }
+        }
+      });
+
+      const ctxEvolucao = document.getElementById("chartEvolucaoComparativa").getContext("2d");
+      chartEvolucaoInstancia = new Chart(ctxEvolucao, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [
+            { label: "Atestados", data: [], borderColor: "#6366f1", backgroundColor: "#6366f1", tension: 0.3, fill: false },
+            { label: "Dias Afastados", data: [], borderColor: "#06b6d4", backgroundColor: "#06b6d4", tension: 0.3, fill: false }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { 
+            legend: { labels: { color: '#cbd5e1' } },
+            datalabels: { 
+              align: 'top', 
+              color: '#f8fafc', 
+              font: { weight: 'bold', size: 10 },
+              formatter: (val) => val > 0 ? Math.round(val) : ""
+            } 
+          },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+          }
+        }
+      });
+
+      const ctxTopCidsComp = document.getElementById("chartTopCidsComparativo").getContext("2d");
+      chartTopCidsComparativoInstancia = new Chart(ctxTopCidsComp, {
+        type: "bar",
+        data: {
+          labels: [],
+          datasets: [
+            { label: "Mês Inicial", data: [], backgroundColor: "#6366f1" },
+            { label: "Mês Final", data: [], backgroundColor: "#10b981" }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#cbd5e1' } },
+            datalabels: {
+              anchor: 'end',
+              align: 'top',
+              font: { weight: 'bold', size: 11 },
+              formatter: (val, ctx) => {
+                if (val === undefined || val === null) return "";
+
+                let totalNoDataset = ctx.chart.data.datasets[ctx.datasetIndex].data.reduce((a, b) => a + b, 0);
+                let pct = totalNoDataset > 0 ? ((val / totalNoDataset) * 100).toFixed(1) + "%" : "0%";
+
+                if (ctx.datasetIndex === 0) {
+                  return `${val} (${pct})`;
+                }
+
+                let valIni = ctx.chart.data.datasets[0].data[ctx.dataIndex] || 0;
+                let diff = val - valIni;
+
+                if (diff > 0) {
+                  return `▲ +${diff} | ${val} (${pct})`;
+                } else if (diff < 0) {
+                  return `▼ ${diff} | ${val} (${pct})`;
+                } else {
+                  return `= 0 | ${val} (${pct})`;
+                }
+              },
+              color: (ctx) => {
+                if (ctx.datasetIndex === 1) {
+                  let valIni = ctx.chart.data.datasets[0].data[ctx.dataIndex] || 0;
+                  let valFim = ctx.dataset.data[ctx.dataIndex] || 0;
+                  let diff = valFim - valIni;
+                  if (diff > 0) return '#f43f5e';
+                  if (diff < 0) return '#34d399';
+                }
+                return '#f8fafc';
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            y: { grace: '30%', ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+          }
+        }
+      });
+    }
+
+    function atualizarGraficos() {
+      const atestLoja = { "Loja 1": 0, "Loja 2": 0, "Loja 3": 0, "Loja 4": 0 };
+      const diasLoja = { "Loja 1": 0, "Loja 2": 0, "Loja 3": 0, "Loja 4": 0 };
+
+      dadosFiltradosAtestados.forEach(d => { 
+        if (atestLoja[d.lojaChave] !== undefined) {
+          atestLoja[d.lojaChave] += 1;
+          diasLoja[d.lojaChave] += d.dias;
+        }
+      });
+
+      chartAtestadosPorLojaInstancia.data.labels = ["Loja 1", "Loja 2", "Loja 3", "Loja 4"];
+      chartAtestadosPorLojaInstancia.data.datasets[0].data = [atestLoja["Loja 1"], atestLoja["Loja 2"], atestLoja["Loja 3"], atestLoja["Loja 4"]];
+      chartAtestadosPorLojaInstancia.update();
+
+      chartDiasPorLojaInstancia.data.labels = ["Loja 1", "Loja 2", "Loja 3", "Loja 4"];
+      chartDiasPorLojaInstancia.data.datasets[0].data = [diasLoja["Loja 1"], diasLoja["Loja 2"], diasLoja["Loja 3"], diasLoja["Loja 4"]];
+      chartDiasPorLojaInstancia.update();
+
+      const atendCount = {};
+      dadosFiltradosAtendimentos.forEach(a => { atendCount[a.tipoExame] = (atendCount[a.tipoExame] || 0) + 1; });
+      const topAtend = Object.entries(atendCount).sort((a,b) => b[1] - a[1]).slice(0, 5);
+      chartAtendimentosPizzaInstancia.data.labels = topAtend.map(x => x[0]);
+      chartAtendimentosPizzaInstancia.data.datasets[0].data = topAtend.map(x => x[1]);
+      chartAtendimentosPizzaInstancia.update();
+
+      const setoresCount = {};
+      dadosFiltradosAtestados.forEach(d => { setoresCount[d.setor] = (setoresCount[d.setor] || 0) + 1; });
+      chartSetoresInstancia.data.labels = Object.keys(setoresCount);
+      chartSetoresInstancia.data.datasets[0].data = Object.values(setoresCount);
+      chartSetoresInstancia.update();
+
+      const cidCount = {};
+      dadosFiltradosAtestados.forEach(d => { 
+        if (d.cid !== "SEM CID") cidCount[d.cid] = (cidCount[d.cid] || 0) + 1; 
+      });
+      const cidsOrdenadas = Object.entries(cidCount).sort((a,b) => b[1] - a[1]).slice(0, 5);
+      chartCidInstancia.data.labels = cidsOrdenadas.map(c => c[0]);
+      chartCidInstancia.data.datasets[0].data = cidsOrdenadas.map(c => c[1]);
+      chartCidInstancia.update();
+
+      const postosAtestado = {};
+      dadosFiltradosAtestados.forEach(a => {
+        const p = a.postoAtendimento || "Não Informado";
+        postosAtestado[p] = (postosAtestado[p] || 0) + 1;
+      });
+      const postosOrdenados = Object.entries(postosAtestado).sort((a,b) => b[1] - a[1]).slice(0, 5);
+      chartPostosInstancia.data.labels = postosOrdenados.map(p => p[0]);
+      chartPostosInstancia.data.datasets[0].data = postosOrdenados.map(p => p[1]);
+      chartPostosInstancia.update();
+    }
+
+    function gerarComparativo() {
+      const aInicio = document.getElementById("compAnoInicio").value;
+      const mInicio = parseInt(document.getElementById("compMesInicio").value);
+      const aFim = document.getElementById("compAnoFim").value;
+      const mFim = parseInt(document.getElementById("compMesFim").value);
+
+      if (!aInicio || !aFim) return;
+
+      const mesInicialChave = parseInt(aInicio) * 12 + mInicio;
+      const mesFinalChave = parseInt(aFim) * 12 + mFim;
+
+      const dadosInicio = dadosAtestados.filter(d => (parseInt(d.ano) * 12 + parseInt(d.mes)) === mesInicialChave);
+      const dadosFim = dadosAtestados.filter(d => (parseInt(d.ano) * 12 + parseInt(d.mes)) === mesFinalChave);
+
+      const totalAtInicial = dadosInicio.length;
+      const totalDiasInicial = dadosInicio.reduce((acc, c) => acc + c.dias, 0);
+      const cidsInicial = new Set(dadosInicio.map(d => d.cid)).size;
+
+      const totalAtFinal = dadosFim.length;
+      const totalDiasFinal = dadosFim.reduce((acc, c) => acc + c.dias, 0);
+      const cidsFinal = new Set(dadosFim.map(d => d.cid)).size;
+
+      renderizarDelta("deltaAtestados", totalAtInicial, totalAtFinal);
+      renderizarDelta("deltaDias", totalDiasInicial, totalDiasFinal);
+      renderizarDelta("deltaCids", cidsInicial, cidsFinal);
+
+      const labels = [];
+      const serieAtestados = [];
+      const serieDias = [];
+
+      for (let ch = mesInicialChave; ch <= mesFinalChave; ch++) {
+        const ano = Math.floor((ch - 1) / 12);
+        const mes = ((ch - 1) % 12) + 1;
+        labels.push(`${mes}/${ano}`);
+
+        const atstMes = dadosAtestados.filter(d => parseInt(d.ano) === ano && parseInt(d.mes) === mes);
+        serieAtestados.push(atstMes.length);
+        serieDias.push(atstMes.reduce((a, b) => a + b.dias, 0));
+      }
+
+      chartEvolucaoInstancia.data.labels = labels;
+      chartEvolucaoInstancia.data.datasets[0].data = serieAtestados;
+      chartEvolucaoInstancia.data.datasets[1].data = serieDias;
+      chartEvolucaoInstancia.update();
+
+      const mapCidIni = {};
+      dadosInicio.forEach(d => { if (d.cid !== "SEM CID") mapCidIni[d.cid] = (mapCidIni[d.cid] || 0) + 1; });
+      const mapCidFim = {};
+      dadosFim.forEach(d => { if (d.cid !== "SEM CID") mapCidFim[d.cid] = (mapCidFim[d.cid] || 0) + 1; });
+
+      const cidsUnicasSet = new Set([...Object.keys(mapCidIni), ...Object.keys(mapCidFim)]);
+      const cidsRanqueadas = [...cidsUnicasSet].map(cid => ({
+        cid: cid,
+        soma: (mapCidIni[cid] || 0) + (mapCidFim[cid] || 0)
+      })).sort((a,b) => b.soma - a.soma).slice(0, 5);
+
+      const labelsTopCids = cidsRanqueadas.map(c => c.cid);
+      const valIni = cidsRanqueadas.map(c => mapCidIni[c.cid] || 0);
+      const valFim = cidsRanqueadas.map(c => mapCidFim[c.cid] || 0);
+
+      chartTopCidsComparativoInstancia.data.labels = labelsTopCids;
+      chartTopCidsComparativoInstancia.data.datasets[0].data = valIni;
+      chartTopCidsComparativoInstancia.data.datasets[1].data = valFim;
+      chartTopCidsComparativoInstancia.update();
+    }
+
+    function renderizarDelta(elemId, v1, v2) {
+      const el = document.getElementById(elemId);
+      const diff = v2 - v1;
+      let pct = v1 > 0 ? ((diff / v1) * 100).toFixed(1) : (v2 > 0 ? "+100" : "0");
+
+      if (diff > 0) {
+        el.className = "text-lg font-black px-4 py-3 rounded-lg flex items-center justify-center gap-1.5 bg-rose-950 text-rose-300 border border-rose-800 w-full";
+        el.innerHTML = `▲ +${diff} (+${pct}%)`;
+      } else if (diff < 0) {
+        el.className = "text-lg font-black px-4 py-3 rounded-lg flex items-center justify-center gap-1.5 bg-emerald-950 text-emerald-300 border border-emerald-800 w-full";
+        el.innerHTML = `▼ ${diff} (${pct}%)`;
+      } else {
+        el.className = "text-lg font-black px-4 py-3 rounded-lg flex items-center justify-center gap-1.5 bg-slate-800 text-slate-300 border border-slate-700 w-full";
+        el.innerHTML = `= 0 (0%)`;
+      }
+    }
+
+    function buscarProntuario() {
+      const termo = document.getElementById("buscaMatricula").value.toLowerCase().trim();
+      if (!termo) return;
+
+      const atestadosColab = dadosAtestados.filter(a => a.matricula.toLowerCase().includes(termo) || a.nome.toLowerCase().includes(termo));
+      const examesColab = dadosAtendimentos.filter(a => a.matricula.toLowerCase().includes(termo) || a.nome.toLowerCase().includes(termo));
+
+      if (atestadosColab.length === 0 && examesColab.length === 0) {
+        alert("Colaborador/Matrícula não localizado no banco de dados.");
+        return;
+      }
+
+      const pInfo = atestadosColab[0] || examesColab[0];
+      document.getElementById("pNome").innerText = pInfo.nome;
+      document.getElementById("pDetalhes").innerText = `Crachá/Ficha: ${pInfo.matricula} | Cargo: ${pInfo.cargo || "N/A"} | Filial: ${pInfo.filial || "N/A"} | Setor: ${pInfo.setor || "N/A"}`;
+
+      let eventos = [];
+
+      atestadosColab.forEach(a => {
+        eventos.push({
+          tipo: 'ATESTADO',
+          dataOrdenacao: a.dtEmissaoRaw || '1970-01-01',
+          dataInicio: a.dataEmissao,
+          dataTermino: a.dataTermino,
+          dias: a.dias,
+          horas: a.horas,
+          cid: a.cid,
+          posto: a.postoAtendimento,
+          atendente: a.atendente
+        });
+      });
+
+      examesColab.forEach(e => {
+        eventos.push({
+          tipo: 'EXAME',
+          dataOrdenacao: e.dataRaw || '1970-01-01',
+          dataAtendimento: e.data,
+          tipoExame: e.tipoExame,
+          posto: e.posto
+        });
+      });
+
+      eventos.sort((a, b) => String(b.dataOrdenacao).localeCompare(String(a.dataOrdenacao)));
+
+      const timeline = document.getElementById("pLinhaTempo");
+      timeline.innerHTML = "";
+
+      eventos.forEach(ev => {
+        if (ev.tipo === 'ATESTADO') {
+          const exibeCid = roleAtual === "GESTOR" ? "*** (Sigilo)" : ev.cid;
+          let textoDuracao = ev.dias > 0 ? `${ev.dias} dia(s)` : `${ev.horas.toFixed(1)}h em atestado parcial`;
+
+          timeline.innerHTML += `
+            <div class="relative pb-4 border-b border-slate-700 last:border-0">
+              <div class="flex justify-between items-start flex-wrap gap-2">
+                <span class="text-sm font-bold text-rose-400 flex items-center gap-1.5">
+                  <i data-lucide="file-text" class="w-4 h-4"></i> Atestado Médico - ${textoDuracao}
+                </span>
+                <span class="text-xs font-bold bg-rose-950 text-rose-300 px-2.5 py-1 rounded border border-rose-800">
+                  Período: ${ev.dataInicio} até ${ev.dataTermino}
+                </span>
+              </div>
+              <div class="text-xs text-slate-300 mt-2 space-y-1">
+                <p>Diagnóstico CID: <strong class="text-slate-100">${exibeCid}</strong></p>
+                <p>Posto de Atendimento: <strong class="text-slate-100">${ev.posto}</strong> | Atendente: <strong class="text-slate-100">${ev.atendente}</strong></p>
+              </div>
+            </div>
+          `;
+        } else {
+          timeline.innerHTML += `
+            <div class="relative pb-4 border-b border-slate-700 last:border-0">
+              <div class="flex justify-between items-start flex-wrap gap-2">
+                <span class="text-sm font-bold text-emerald-400 flex items-center gap-1.5">
+                  <i data-lucide="stethoscope" class="w-4 h-4"></i> Consulta / Exame: ${ev.tipoExame}
+                </span>
+                <span class="text-xs font-bold bg-emerald-950 text-emerald-300 px-2.5 py-1 rounded border border-emerald-800">
+                  Data: ${ev.dataAtendimento}
+                </span>
+              </div>
+              <div class="text-xs text-slate-300 mt-2">
+                Posto de Atendimento: <strong class="text-slate-100">${ev.posto}</strong>
+              </div>
+            </div>
+          `;
+        }
+      });
+
+      document.getElementById("resultadoProntuario").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    function verificarAlertas() {
+      const lista = document.getElementById("listaAlertas");
+      lista.innerHTML = "";
+      let totalAlertas = 0;
+
+      const atestadosLongos = dadosAtestados.filter(a => a.dias > 15);
+
+      const mapaReincidencia = {};
+      dadosAtestados.forEach(a => {
+        if (a.cid !== "SEM CID") {
+          const chave = `${a.matricula}_${a.cid}`;
+          if (!mapaReincidencia[chave]) {
+            mapaReincidencia[chave] = { colab: a.nome, ficha: a.matricula, cid: a.cid, count: 0, totalDias: 0 };
+          }
+          mapaReincidencia[chave].count++;
+          mapaReincidencia[chave].totalDias += a.dias;
+        }
+      });
+
+      const reincidentes = Object.values(mapaReincidencia).filter(r => r.count >= 3);
+      totalAlertas = atestadosLongos.length + reincidentes.length;
+
+      document.getElementById("kpiAlertasQtde").innerText = totalAlertas;
+      const badge = document.getElementById("badgeAlertas");
+      if (totalAlertas > 0) {
+        badge.innerText = totalAlertas;
+        badge.classList.remove("hidden");
+      } else {
+        badge.classList.add("hidden");
+      }
+
+      if (totalAlertas === 0) {
+        lista.innerHTML = `
+          <div class="p-4 bg-[#0f172a] rounded-lg border border-slate-700 text-xs text-slate-400 text-center shadow-sm">
+            Nenhum alerta crítico disparado até o momento.
+          </div>
+        `;
+        return;
+      }
+
+      atestadosLongos.slice(0, 20).forEach(a => {
+        lista.innerHTML += `
+          <div class="p-3 bg-amber-950/60 border-l-4 border-amber-500 rounded-r-lg text-xs flex justify-between items-center shadow-sm border border-amber-900/50">
+            <div>
+              <span class="font-bold text-amber-300 flex items-center gap-1">
+                <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-400"></i> Afastamento Longo (>15 Dias - Encaminhar INSS)
+              </span>
+              <p class="text-slate-300 mt-0.5">Colaborador: <strong>${a.nome}</strong> (Crachá: ${a.matricula}) - <strong>${a.dias} dias</strong> de afastamento em ${a.dataEmissao}.</p>
+            </div>
+            <span class="bg-amber-900 text-amber-200 font-bold px-2.5 py-1 rounded text-[10px]">INSS / SESMT</span>
+          </div>
+        `;
+      });
+
+      reincidentes.slice(0, 20).forEach(r => {
+        lista.innerHTML += `
+          <div class="p-3 bg-rose-950/60 border-l-4 border-rose-500 rounded-r-lg text-xs flex justify-between items-center shadow-sm border border-rose-900/50">
+            <div>
+              <span class="font-bold text-rose-300 flex items-center gap-1">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-rose-400"></i> Reincidência Epidemiológica (${r.count} Atestados da mesma CID)
+              </span>
+              <p class="text-slate-300 mt-0.5">Colaborador: <strong>${r.colab}</strong> (Crachá: ${r.ficha}) | CID: <strong>${r.cid}</strong> | Total Acumulado: <strong>${r.totalDias} dias</strong>.</p>
+            </div>
+            <span class="bg-rose-900 text-rose-200 font-bold px-2.5 py-1 rounded text-[10px]">Investigar Causa</span>
+          </div>
+        `;
+      });
+
+      lucide.createIcons();
+    }
+
+    function exportarExcel() {
+      if (dadosFiltradosAtestados.length === 0) return alert("Não há dados para exportar.");
+
+      const relatorioMap = dadosFiltradosAtestados.map(d => ({
+        CrachaFicha: d.matricula,
+        Nome: d.nome,
+        Cargo: d.cargo,
+        FilialLoja: d.lojaChave,
+        Setor: d.setor,
+        DataEmissao: d.dataEmissao,
+        DataTermino: d.dataTermino,
+        Dias: d.dias,
+        HorasParciais: d.horas,
+        CID10: roleAtual === "GESTOR" ? "SIGILO" : d.cid,
+        PostoAtendimento: d.postoAtendimento,
+        Atendente: d.atendente
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(relatorioMap);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Atestados");
+      XLSX.writeFile(wb, "Relatorio_Medicina_Trabalho_Rondon.xlsx");
+    }
+
+    function exportarPDF() {
+      if (dadosFiltradosAtestados.length === 0) return alert("Não há dados para exportar.");
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFontSize(14);
+      doc.text("Relatório Executivo SESMT - Supermercados Rondon", 14, 15);
+      doc.setFontSize(9);
+      doc.text(`Perfil: ${roleAtual} | Total de Registros Exibidos: ${dadosFiltradosAtestados.length}`, 14, 22);
+
+      const tableRows = dadosFiltradosAtestados.slice(0, 500).map(d => [
+        d.matricula,
+        d.nome,
+        d.setor,
+        d.dataEmissao,
+        `${d.dias}d / ${d.horas.toFixed(1)}h`,
+        roleAtual === "GESTOR" ? "***" : d.cid,
+        d.postoAtendimento
+      ]);
+
+      doc.autoTable({
+        head: [['Crachá', 'Colaborador', 'Setor', 'Início', 'Dias/Horas', 'CID-10', 'Posto Atendimento']],
+        body: tableRows,
+        startY: 28,
+        theme: 'stripe',
+        headStyles: { fillColor: [5, 150, 105] }
+      });
+
+      doc.save("Relatorio_SESMT_Rondon.pdf");
+    }
+
+    function alterarPerfil() {
+      roleAtual = document.getElementById("userRole").value;
+      const lockMsg = document.getElementById("lockCidMessage");
+      const tagSigilo = document.getElementById("tagSigiloCid");
+
+      if (roleAtual === "GESTOR") {
+        lockMsg.classList.remove("hidden");
+        tagSigilo.innerText = "Sigilo Ativo (Sem CID)";
+        tagSigilo.className = "text-[10px] font-semibold px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800";
+      } else {
+        lockMsg.classList.add("hidden");
+        tagSigilo.innerText = "Acesso Médico / Clínico";
+        tagSigilo.className = "text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800";
+      }
+
+      recalcularDashboard();
+    }
+
+    function abrirModalReset() {
+      document.getElementById("modalReset").classList.remove("hidden");
+      document.getElementById("inputSenhaAdm").value = "";
+      document.getElementById("erroSenhaReset").classList.add("hidden");
+    }
+
+    function fecharModalReset() {
+      document.getElementById("modalReset").classList.add("hidden");
+    }
+
+    function executarResetBase() {
+      const senha = document.getElementById("inputSenhaAdm").value;
+      if (roleAtual === "ADM" && senha === "admin123") {
+        dadosAtestados = [];
+        dadosAtendimentos = [];
+        dadosFiltradosAtestados = [];
+        dadosFiltradosAtendimentos = [];
+        dadosColaboradoresAgrupados = [];
+        mapaEmpregados = {};
+        atualizarStatusCarga("Base de dados limpa com sucesso.");
+        recalcularDashboard();
+        verificarAlertas();
+        fecharModalReset();
+      } else {
+        document.getElementById("erroSenhaReset").classList.add("hidden");
+      }
+    }
+
+    function atualizarStatusCarga(msg) {
+      document.getElementById("statusCarga").innerText = msg;
+    }
+  </script>
+</body>
+</html>
